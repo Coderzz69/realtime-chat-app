@@ -4,6 +4,14 @@ import { getFirestore, collection, addDoc, setDoc, doc, getDoc, getDocs, query, 
 import { getStorage } from "firebase/storage";
 import { User } from "@shared/schema";
 
+// Log environment variables to debug
+console.log("Firebase config:", {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID
+});
+
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: `${import.meta.env.VITE_FIREBASE_PROJECT_ID}.firebaseapp.com`,
@@ -67,8 +75,19 @@ export const loginWithEmail = async (email: string, password: string) => {
 export const loginWithGoogle = async () => {
   try {
     const provider = new GoogleAuthProvider();
+    // Add scopes if needed
+    provider.addScope('profile');
+    provider.addScope('email');
+    // Set custom parameters
+    provider.setCustomParameters({
+      prompt: 'select_account'
+    });
+    
+    // Use signInWithPopup instead of signInWithRedirect for easier debugging
     const result = await signInWithPopup(auth, provider);
     const user = result.user;
+    
+    console.log("Google login successful:", user);
     
     // Check if user exists in Firestore
     const userDoc = await getDoc(doc(db, "users", user.uid));
@@ -94,6 +113,7 @@ export const loginWithGoogle = async () => {
     return user;
   } catch (error) {
     console.error("Error during Google login:", error);
+    console.error("Error details:", JSON.stringify(error));
     throw error;
   }
 };
