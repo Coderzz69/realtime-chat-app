@@ -35,7 +35,7 @@ export const messages = pgTable("messages", {
   content: text("content").notNull(),
   contentType: text("content_type").default("text"),
   createdAt: timestamp("created_at").defaultNow(),
-  readBy: text("read_by").array(),
+  readBy: text("read_by").array().notNull().default([]),
 });
 
 // Relations
