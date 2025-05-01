@@ -13,32 +13,16 @@
   --card-foreground: 20 14.3% 4.1%;
   --border: 20 5.9% 90%;
   --input: 20 5.9% 90%;
-  --primary: 239 84% 67%;
-  --primary-foreground: 211 100% 99%;
+  --primary: 235 86% 65%;
+  --primary-foreground: 0 0% 100%;
   --secondary: 60 4.8% 95.9%;
   --secondary-foreground: 24 9.8% 10%;
   --accent: 60 4.8% 95.9%;
   --accent-foreground: 24 9.8% 10%;
   --destructive: 0 84.2% 60.2%;
   --destructive-foreground: 60 9.1% 97.8%;
-  --ring: 20 14.3% 4.1%;
+  --ring: 235 86% 65%;
   --radius: 0.5rem;
-  
-  --sidebar-background: 0 0% 100%;
-  --sidebar-foreground: 20 14.3% 4.1%;
-  --sidebar-primary: 239 84% 67%;
-  --sidebar-primary-foreground: 211 100% 99%;
-  --sidebar-accent: 60 4.8% 95.9%;
-  --sidebar-accent-foreground: 24 9.8% 10%;
-  --sidebar-border: 20 5.9% 90%;
-  --sidebar-ring: 20 14.3% 4.1%;
-  
-  /* Chart colors */
-  --chart-1: 239 84% 67%;
-  --chart-2: 262 83% 58%;
-  --chart-3: 19 97% 51%;
-  --chart-4: 176 56% 52%;
-  --chart-5: 354 78% 46%;
 }
 
 .dark {
@@ -52,79 +36,75 @@
   --card-foreground: 0 0% 98%;
   --border: 240 3.7% 15.9%;
   --input: 240 3.7% 15.9%;
-  --primary: 239 84% 67%;
-  --primary-foreground: 211 100% 99%;
+  --primary: 235 86% 65%;
+  --primary-foreground: 0 0% 100%;
   --secondary: 240 3.7% 15.9%;
   --secondary-foreground: 0 0% 98%;
   --accent: 240 3.7% 15.9%;
   --accent-foreground: 0 0% 98%;
   --destructive: 0 62.8% 30.6%;
   --destructive-foreground: 0 0% 98%;
-  --ring: 240 4.9% 83.9%;
+  --ring: 235 86% 65%;
+  --radius: 0.5rem;
 }
 
 @layer base {
   * {
     @apply border-border;
   }
-  
+
   body {
-    @apply font-sans antialiased bg-gray-50 text-foreground;
+    @apply font-sans antialiased bg-background text-foreground;
   }
+}
 
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;
-  }
-  
-  .scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
 
-  @keyframes typing {
-    0%, 100% { opacity: 0.3; }
-    50% { opacity: 1; }
-  }
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
 
-  @keyframes fadeIn {
-    0% { opacity: 0; }
-    100% { opacity: 1; }
-  }
+.message-bubble-transition {
+  transition: all 0.3s ease;
+}
 
-  .typing-indicator span {
-    display: inline-block;
-    width: 5px;
-    height: 5px;
-    background-color: #A5B4FC;
-    border-radius: 50%;
-    animation: typing 1s infinite;
-  }
-  
-  .typing-indicator span:nth-child(2) {
-    animation-delay: 0.2s;
-  }
-  
-  .typing-indicator span:nth-child(3) {
-    animation-delay: 0.4s;
-  }
+.typing-indicator {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+}
 
-  .animate-fade-in {
-    animation: fadeIn 0.3s ease-in-out;
-  }
+.typing-indicator span {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  background-color: #a5b4fc;
+  border-radius: 50%;
+  animation: typing 1s infinite;
+}
 
-  .message-bubble-transition {
-    transition: all 0.3s ease;
-  }
+.typing-indicator span:nth-child(2) {
+  animation-delay: 0.2s;
+}
 
-  .online-indicator {
-    @apply absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white;
-  }
+.typing-indicator span:nth-child(3) {
+  animation-delay: 0.4s;
+}
 
-  .online-indicator.online {
-    @apply bg-emerald-500;
-  }
+@keyframes typing {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
 
-  .online-indicator.offline {
-    @apply bg-gray-300;
-  }
+@keyframes fadeIn {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-in-out;
 }

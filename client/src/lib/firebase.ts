@@ -1,262 +1,246 @@
 import { initializeApp } from "firebase/app";
-import { 
-  getAuth, 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword, 
-  signOut as firebaseSignOut, 
-  onAuthStateChanged,
-  updateProfile,
-  GoogleAuthProvider,
-  signInWithPopup
-} from "firebase/auth";
-import { 
-  getFirestore, 
-  collection, 
-  doc, 
-  getDoc, 
-  setDoc, 
-  updateDoc, 
-  query, 
-  where, 
-  onSnapshot, 
-  serverTimestamp, 
-  orderBy, 
-  limit,
-  addDoc,
-  arrayUnion,
-  arrayRemove,
-  getDocs
-} from "firebase/firestore";
+import { getAuth, GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, updateProfile } from "firebase/auth";
+import { getFirestore, collection, addDoc, setDoc, doc, getDoc, getDocs, query, where, orderBy, onSnapshot, serverTimestamp, updateDoc, arrayUnion } from "firebase/firestore";
+import { getStorage } from "firebase/storage";
+import { User } from "@shared/schema";
 
-// Use environment variables for Firebase config
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: `${import.meta.env.VITE_FIREBASE_PROJECT_ID}.firebaseapp.com`,
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
   storageBucket: `${import.meta.env.VITE_FIREBASE_PROJECT_ID}.appspot.com`,
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
-export const googleProvider = new GoogleAuthProvider();
+export const storage = getStorage(app);
 
 // Authentication functions
-export const signInWithEmail = (email: string, password: string) => {
-  return signInWithEmailAndPassword(auth, email, password);
-};
-
-export const signInWithGoogle = () => {
-  return signInWithPopup(auth, googleProvider);
-};
-
-export const registerWithEmail = async (email: string, password: string, displayName: string) => {
-  const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-  
-  // Update the user profile with displayName
-  if (userCredential.user) {
-    await updateProfile(userCredential.user, {
-      displayName
+export const registerWithEmail = async (email: string, password: string, username: string) => {
+  try {
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const user = userCredential.user;
+    
+    // Update profile with username
+    await updateProfile(user, {
+      displayName: username
     });
     
-    // Create a user document in Firestore
-    await setDoc(doc(db, "users", userCredential.user.uid), {
-      uid: userCredential.user.uid,
+    // Create user document in Firestore
+    await setDoc(doc(db, "users", user.uid), {
+      uid: user.uid,
+      username,
       email,
-      displayName,
-      photoURL: userCredential.user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random`,
+      photoURL: user.photoURL || null,
       status: "online",
-      lastSeen: serverTimestamp(),
-      createdAt: serverTimestamp()
+      lastSeen: serverTimestamp()
     });
-  }
-  
-  return userCredential;
-};
-
-export const signOut = () => {
-  return firebaseSignOut(auth);
-};
-
-// User status functions
-export const setUserStatus = async (userId: string, status: 'online' | 'offline') => {
-  const userRef = doc(db, "users", userId);
-  await updateDoc(userRef, {
-    status,
-    lastSeen: serverTimestamp()
-  });
-};
-
-// Conversation functions
-export const createConversation = async (participants: string[], name: string | null = null, isGroup: boolean = false) => {
-  const conversationRef = collection(db, "conversations");
-  
-  const newConversation = {
-    participants,
-    isGroup,
-    createdAt: serverTimestamp(),
-    lastMessage: null
-  };
-  
-  if (name && isGroup) {
-    newConversation['name'] = name;
-  }
-  
-  const docRef = await addDoc(conversationRef, newConversation);
-  return docRef.id;
-};
-
-export const sendMessage = async (conversationId: string, senderId: string, content: string) => {
-  // Add message to the messages collection
-  const messagesRef = collection(db, "messages");
-  const messageData = {
-    conversationId,
-    senderId,
-    content,
-    timestamp: serverTimestamp(),
-    read: false
-  };
-  
-  const messageRef = await addDoc(messagesRef, messageData);
-  
-  // Update the conversation's last message
-  const conversationRef = doc(db, "conversations", conversationId);
-  await updateDoc(conversationRef, {
-    lastMessage: {
-      content,
-      timestamp: serverTimestamp(),
-      senderId
-    }
-  });
-  
-  return messageRef.id;
-};
-
-export const markMessageAsRead = async (messageId: string) => {
-  const messageRef = doc(db, "messages", messageId);
-  await updateDoc(messageRef, {
-    read: true
-  });
-};
-
-export const getUserConversations = (userId: string, callback: (conversations: any[]) => void) => {
-  const conversationsRef = collection(db, "conversations");
-  const q = query(conversationsRef, where("participants", "array-contains", userId));
-  
-  return onSnapshot(q, async (snapshot) => {
-    const conversations = [];
     
-    for (const doc of snapshot.docs) {
-      const conversationData = doc.data();
-      const participantProfiles = [];
-      
-      // Get participant profiles
-      for (const participantId of conversationData.participants) {
-        if (participantId !== userId) {
-          const userDoc = await getDoc(doc(db, "users", participantId));
-          if (userDoc.exists()) {
-            participantProfiles.push({
-              id: participantId,
-              ...userDoc.data()
-            });
-          }
-        }
-      }
-      
-      conversations.push({
-        id: doc.id,
-        ...conversationData,
-        participantProfiles
+    return user;
+  } catch (error) {
+    console.error("Error during registration:", error);
+    throw error;
+  }
+};
+
+export const loginWithEmail = async (email: string, password: string) => {
+  try {
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    
+    // Update user status to online
+    await updateDoc(doc(db, "users", userCredential.user.uid), {
+      status: "online",
+      lastSeen: serverTimestamp()
+    });
+    
+    return userCredential.user;
+  } catch (error) {
+    console.error("Error during login:", error);
+    throw error;
+  }
+};
+
+export const loginWithGoogle = async () => {
+  try {
+    const provider = new GoogleAuthProvider();
+    const result = await signInWithPopup(auth, provider);
+    const user = result.user;
+    
+    // Check if user exists in Firestore
+    const userDoc = await getDoc(doc(db, "users", user.uid));
+    
+    if (!userDoc.exists()) {
+      // Create new user in Firestore
+      await setDoc(doc(db, "users", user.uid), {
+        uid: user.uid,
+        username: user.displayName || `user_${Math.floor(Math.random() * 10000)}`,
+        email: user.email,
+        photoURL: user.photoURL,
+        status: "online",
+        lastSeen: serverTimestamp()
+      });
+    } else {
+      // Update user status to online
+      await updateDoc(doc(db, "users", user.uid), {
+        status: "online",
+        lastSeen: serverTimestamp()
       });
     }
     
+    return user;
+  } catch (error) {
+    console.error("Error during Google login:", error);
+    throw error;
+  }
+};
+
+export const logoutUser = async () => {
+  try {
+    const user = auth.currentUser;
+    if (user) {
+      // Update user status to offline
+      await updateDoc(doc(db, "users", user.uid), {
+        status: "offline",
+        lastSeen: serverTimestamp()
+      });
+    }
+    await signOut(auth);
+  } catch (error) {
+    console.error("Error during logout:", error);
+    throw error;
+  }
+};
+
+// Firestore data functions
+export const createConversation = async (participants: string[], isGroup: boolean = false, name?: string) => {
+  try {
+    const newConversationRef = await addDoc(collection(db, "conversations"), {
+      participants,
+      isGroup,
+      name: name || null,
+      createdAt: serverTimestamp(),
+      lastMessageAt: serverTimestamp()
+    });
+    
+    return newConversationRef.id;
+  } catch (error) {
+    console.error("Error creating conversation:", error);
+    throw error;
+  }
+};
+
+export const sendMessage = async (conversationId: string, senderId: string, content: string, contentType: string = "text") => {
+  try {
+    const messageRef = await addDoc(collection(db, "messages"), {
+      conversationId,
+      senderId,
+      content,
+      contentType,
+      createdAt: serverTimestamp(),
+      readBy: [senderId]
+    });
+    
+    // Update conversation's lastMessageAt
+    await updateDoc(doc(db, "conversations", conversationId), {
+      lastMessageAt: serverTimestamp()
+    });
+    
+    return messageRef.id;
+  } catch (error) {
+    console.error("Error sending message:", error);
+    throw error;
+  }
+};
+
+export const markMessageAsRead = async (messageId: string, userId: string) => {
+  try {
+    await updateDoc(doc(db, "messages", messageId), {
+      readBy: arrayUnion(userId)
+    });
+  } catch (error) {
+    console.error("Error marking message as read:", error);
+    throw error;
+  }
+};
+
+export const getConversations = (userId: string, callback: Function) => {
+  const q = query(
+    collection(db, "conversations"),
+    where("participants", "array-contains", userId),
+    orderBy("lastMessageAt", "desc")
+  );
+  
+  return onSnapshot(q, (querySnapshot) => {
+    const conversations = querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
     callback(conversations);
   });
 };
 
-export const getConversationMessages = (conversationId: string, callback: (messages: any[]) => void) => {
-  const messagesRef = collection(db, "messages");
+export const getMessages = (conversationId: string, callback: Function) => {
   const q = query(
-    messagesRef, 
+    collection(db, "messages"),
     where("conversationId", "==", conversationId),
-    orderBy("timestamp", "asc")
+    orderBy("createdAt", "asc")
   );
   
-  return onSnapshot(q, (snapshot) => {
-    const messages = snapshot.docs.map(doc => ({
+  return onSnapshot(q, (querySnapshot) => {
+    const messages = querySnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
     }));
-    
     callback(messages);
   });
 };
 
-export const setTypingStatus = async (conversationId: string, userId: string, isTyping: boolean) => {
-  const conversationRef = doc(db, "conversations", conversationId);
-  
-  if (isTyping) {
-    await updateDoc(conversationRef, {
-      typingUsers: arrayUnion(userId)
-    });
-  } else {
-    await updateDoc(conversationRef, {
-      typingUsers: arrayRemove(userId)
-    });
+export const getUserData = async (userId: string) => {
+  try {
+    const userDoc = await getDoc(doc(db, "users", userId));
+    if (userDoc.exists()) {
+      return userDoc.data();
+    }
+    return null;
+  } catch (error) {
+    console.error("Error getting user data:", error);
+    throw error;
   }
 };
 
-export const getTypingUsers = (conversationId: string, callback: (typingUsers: string[]) => void) => {
-  const conversationRef = doc(db, "conversations", conversationId);
-  
-  return onSnapshot(conversationRef, (snapshot) => {
-    const data = snapshot.data();
-    const typingUsers = data?.typingUsers || [];
-    callback(typingUsers);
-  });
-};
-
-export const getUserProfile = async (userId: string) => {
-  const userRef = doc(db, "users", userId);
-  const userDoc = await getDoc(userRef);
-  
-  if (userDoc.exists()) {
-    return {
-      id: userId,
-      ...userDoc.data()
-    };
-  }
-  
-  return null;
-};
-
-export const updateUserProfile = async (userId: string, data: any) => {
-  const userRef = doc(db, "users", userId);
-  await updateDoc(userRef, {
-    ...data,
-    updatedAt: serverTimestamp()
-  });
-};
-
-export const searchUsers = async (query: string) => {
-  const usersRef = collection(db, "users");
-  const snapshot = await getDocs(usersRef);
-  
-  const users = snapshot.docs
-    .map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }))
-    .filter(user => {
-      const displayName = user.displayName?.toLowerCase() || '';
-      const email = user.email?.toLowerCase() || '';
-      const searchQuery = query.toLowerCase();
-      
-      return displayName.includes(searchQuery) || email.includes(searchQuery);
+export const searchUsers = async (searchTerm: string) => {
+  try {
+    const usersRef = collection(db, "users");
+    const q = query(usersRef, 
+      where("username", ">=", searchTerm), 
+      where("username", "<=", searchTerm + "\uf8ff")
+    );
+    
+    const querySnapshot = await getDocs(q);
+    const users: any[] = [];
+    querySnapshot.forEach((doc) => {
+      users.push({
+        id: doc.id,
+        ...doc.data()
+      });
     });
-  
-  return users;
+    
+    return users;
+  } catch (error) {
+    console.error("Error searching users:", error);
+    throw error;
+  }
+};
+
+export const getOnlineStatus = (userId: string, callback: Function) => {
+  return onSnapshot(doc(db, "users", userId), (doc) => {
+    if (doc.exists()) {
+      const userData = doc.data();
+      callback(userData.status);
+    }
+  });
 };
